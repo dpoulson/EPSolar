@@ -27,7 +27,8 @@ bool rs485DataReceived = true;
 ModbusMaster node;
 SimpleTimer timer;
 
-char buf[100];
+char buf[10];
+String value;
 
 // tracer requires no handshaking
 void preTransmission() {}
@@ -41,6 +42,7 @@ RegistryList Registries = {
 };
 // keep log of where we are
 uint8_t currentRegistryNumber = 0;
+
 // function to switch to next registry
 void nextRegistryNumber() {
   currentRegistryNumber = (currentRegistryNumber + 1) % ARRAY_SIZE( Registries);
@@ -115,40 +117,39 @@ void doRegistryNumber() {
 }
 
 void AddressRegistry_3100() {
-  char buf[50];
-  result = node.readInputRegisters(0x3100, 7);
+  result = node.readInputRegisters(0x3100, 10);
   if (result == node.ku8MBSuccess)
   {
     client.publish("EPSolar/1/loop1", "result");
    
-    dtostrf((node.getResponseBuffer(0x11) / 100.0f), 6, 3, buf );
+    dtostrf((node.getResponseBuffer(0x11) / 100.0f), 2, 3, buf );
     client.publish("EPSolar/1/temp1", buf);
     
-    dtostrf((node.getResponseBuffer(0x04) / 100.0f), 6, 3, buf );
+    dtostrf((node.getResponseBuffer(0x04) / 100.0f), 2, 3, buf );
     client.publish("EPSolar/1/bvoltage", buf);
 
     lpower = ((long)node.getResponseBuffer(0x0F) << 16 | node.getResponseBuffer(0x0E)) / 100.0f;
-    dtostrf(lpower, 6, 3, buf);
+    dtostrf(lpower, 2, 3, buf);
     client.publish("EPSolar/1/lpower", buf);
 
     lcurrent = (long)node.getResponseBuffer(0x0D) / 100.0f;
-    dtostrf(lcurrent, 6, 3, buf );
+    dtostrf(lcurrent, 2, 3, buf );
     client.publish("EPSolar/1/lcurrent", buf);
 
     pvvoltage = (long)node.getResponseBuffer(0x00) / 100.0f;
-    dtostrf(pvvoltage, 6, 3, buf );
+    dtostrf(pvvoltage, 2, 3, buf );
     client.publish("EPSolar/1/pvvoltage", buf);
 
     pvcurrent = (long)node.getResponseBuffer(0x01) / 100.0f;
-    dtostrf(pvcurrent, 6, 3, buf );
+    dtostrf(pvcurrent, 2, 3, buf );
     client.publish("EPSolar/1/pvcurrent", buf);   
 
     pvpower = ((long)node.getResponseBuffer(0x03) << 16 | node.getResponseBuffer(0x02)) / 100.0f;
-    dtostrf(pvpower, 6, 3, buf );
+    dtostrf(pvpower, 2, 3, buf );
     client.publish("EPSolar/1/pvpower", buf);
     
     battChargeCurrent = (long)node.getResponseBuffer(0x05) / 100.0f;
-    dtostrf(battChargeCurrent, 6, 3, buf );
+    dtostrf(battChargeCurrent, 2, 3, buf );
     client.publish("EPSolar/1/battChargeCurrent", buf);
 
   } else {
@@ -157,16 +158,15 @@ void AddressRegistry_3100() {
 }
 
 void AddressRegistry_311A() {
-  char buf[10];
   result = node.readInputRegisters(0x311A, 2);
   if (result == node.ku8MBSuccess)
   {
     bremaining = node.getResponseBuffer(0x00) / 1.0f;
-    dtostrf(bremaining, 6, 3, buf );
+    dtostrf(bremaining, 2, 3, buf );
     client.publish("EPSolar/1/bremaining", buf);
     
     btemp = node.getResponseBuffer(0x01) / 100.0f;
-    dtostrf(btemp, 6, 3, buf );
+    dtostrf(btemp, 2, 3, buf );
     client.publish("EPSolar/1/btemp", buf);
     
   } else {
