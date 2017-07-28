@@ -8,10 +8,9 @@
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 int timerTask2, timerTask3;
-float battBhargeCurrent, btemp, bremaining, lpower, lcurrent, pvvoltage, pvcurrent, pvpower;
+float ctemp, bvoltage, battChargeCurrent, btemp, bremaining, lpower, lcurrent, pvvoltage, pvcurrent, pvpower;
 uint8_t result;
-char* ctemp;
-char* bvoltage;
+
 
 const char* ssid = "60 Chequers Avenue AP1";
 const char* password = "trial3211";
@@ -91,8 +90,8 @@ void setup() {
   client.setServer(mqtt_server, 1883);
 
 
-  timerTask2 = timer.setInterval(1000, doRegistryNumber);
-  timerTask3 = timer.setInterval(1000, nextRegistryNumber);
+  timerTask2 = timer.setInterval(10000, doRegistryNumber);
+  timerTask3 = timer.setInterval(10000, nextRegistryNumber);
 }
 
 void reconnect() {
@@ -116,28 +115,41 @@ void doRegistryNumber() {
 }
 
 void AddressRegistry_3100() {
-  client.publish("EPSolar/1/loop1", "loop");
+  char buf[50];
   result = node.readInputRegisters(0x3100, 7);
   if (result == node.ku8MBSuccess)
   {
     client.publish("EPSolar/1/loop1", "result");
-    dtostrf((node.getResponseBuffer(0x11) / 100.0f), 6, 3, ctemp );
-    client.publish("EPSolar/1/temp1", ctemp);
-
-    dtostrf((node.getResponseBuffer(0x04) / 100.0f), 6, 3, bvoltage );
-    client.publish("EPSolar/1/bvoltage", bvoltage);
+   
+    dtostrf((node.getResponseBuffer(0x11) / 100.0f), 6, 3, buf );
+    client.publish("EPSolar/1/temp1", buf);
+    
+    dtostrf((node.getResponseBuffer(0x04) / 100.0f), 6, 3, buf );
+    client.publish("EPSolar/1/bvoltage", buf);
 
     lpower = ((long)node.getResponseBuffer(0x0F) << 16 | node.getResponseBuffer(0x0E)) / 100.0f;
+    dtostrf(lpower, 6, 3, buf);
+    client.publish("EPSolar/1/lpower", buf);
 
     lcurrent = (long)node.getResponseBuffer(0x0D) / 100.0f;
+    dtostrf(lcurrent, 6, 3, buf );
+    client.publish("EPSolar/1/lcurrent", buf);
 
     pvvoltage = (long)node.getResponseBuffer(0x00) / 100.0f;
+    dtostrf(pvvoltage, 6, 3, buf );
+    client.publish("EPSolar/1/pvvoltage", buf);
 
     pvcurrent = (long)node.getResponseBuffer(0x01) / 100.0f;
+    dtostrf(pvcurrent, 6, 3, buf );
+    client.publish("EPSolar/1/pvcurrent", buf);   
 
     pvpower = ((long)node.getResponseBuffer(0x03) << 16 | node.getResponseBuffer(0x02)) / 100.0f;
-
-    battBhargeCurrent = (long)node.getResponseBuffer(0x05) / 100.0f;
+    dtostrf(pvpower, 6, 3, buf );
+    client.publish("EPSolar/1/pvpower", buf);
+    
+    battChargeCurrent = (long)node.getResponseBuffer(0x05) / 100.0f;
+    dtostrf(battChargeCurrent, 6, 3, buf );
+    client.publish("EPSolar/1/battChargeCurrent", buf);
 
   } else {
     rs485DataReceived = false;
@@ -145,20 +157,22 @@ void AddressRegistry_3100() {
 }
 
 void AddressRegistry_311A() {
+  char buf[10];
   result = node.readInputRegisters(0x311A, 2);
   if (result == node.ku8MBSuccess)
   {
     bremaining = node.getResponseBuffer(0x00) / 1.0f;
-
+    dtostrf(bremaining, 6, 3, buf );
+    client.publish("EPSolar/1/bremaining", buf);
+    
     btemp = node.getResponseBuffer(0x01) / 100.0f;
-
+    dtostrf(btemp, 6, 3, buf );
+    client.publish("EPSolar/1/btemp", buf);
+    
   } else {
     rs485DataReceived = false;
   }
 }
-
-
-
 
 void loop() {
   ArduinoOTA.handle();
@@ -168,3 +182,4 @@ void loop() {
   client.loop();
   timer.run();
 }
+
