@@ -1,3 +1,21 @@
+/*
+
+    Copyright (C) 2017 Darren Poulson <darren.poulson@gmail.com>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
@@ -17,6 +35,7 @@ const char* password = "trial3211";
 const char* mqtt_server = "192.168.6.46";
 
 #define OTA_HOSTNAME                    "SOLAR-CHARGE-MONITOR-1"
+#define EPSOLAR_DEVICE_ID		1;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -59,7 +78,7 @@ void setup() {
     ESP.restart();
   }
   // Modbus slave ID 1
-  node.begin(1, Serial);
+  node.begin(EPSOLAR_DEVICE_ID, Serial);
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
   // Port defaults to 8266
