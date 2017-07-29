@@ -8,7 +8,7 @@ I am developing this on a NodeMCU v1, but see no reason why it won't work with o
 # MQTT
 By default, this will write to queues under:
 
-/EPSolar/<device ID>/<stat>
+/EPSolar/\<device ID\>/\<stat\>
 
 # Incorporating into OpenHAB
 
@@ -38,7 +38,7 @@ For full graphing, follow this tutorial: https://community.openhab.org/t/influxd
 
 # Author
 
-Darren Poulson <darren.poulson@gmail.com>
+Darren Poulson \<darren.poulson@gmail.com\>
 
 
 
