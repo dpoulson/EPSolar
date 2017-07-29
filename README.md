@@ -40,5 +40,6 @@ For full graphing, follow this tutorial: https://community.openhab.org/t/influxd
 
 Darren Poulson \<darren.poulson@gmail.com\>
 
+Further reading: http://60chequersavenue.net/wordpress/2017/07/pretty-solar-graphs/
 
 
