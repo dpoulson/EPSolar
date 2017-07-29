@@ -27,6 +27,8 @@
 
 int timerTask2, timerTask3;
 float ctemp, bvoltage, battChargeCurrent, btemp, bremaining, lpower, lcurrent, pvvoltage, pvcurrent, pvpower;
+float batt_type, batt_cap, batt_highdisc, batt_chargelimit, batt_overvoltrecon, batt_equalvolt, batt_boostvolt, batt_floatvolt, batt_boostrecon;
+float batt_lowvoltrecon, batt_undervoltrecon, batt_undervoltwarn, batt_lowvoltdisc;
 uint8_t result;
 
 
@@ -35,7 +37,7 @@ const char* password = "trial3211";
 const char* mqtt_server = "192.168.6.46";
 
 #define OTA_HOSTNAME                    "SOLAR-CHARGE-MONITOR-1"
-#define EPSOLAR_DEVICE_ID		1;
+#define EPSOLAR_DEVICE_ID		1
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -58,6 +60,7 @@ typedef void (*RegistryList[])();
 RegistryList Registries = {
   AddressRegistry_3100,
   AddressRegistry_311A,
+  AddressRegistry_9000,
 };
 // keep log of where we are
 uint8_t currentRegistryNumber = 0;
@@ -140,11 +143,13 @@ void AddressRegistry_3100() {
   if (result == node.ku8MBSuccess)
   {
     client.publish("EPSolar/1/loop1", "result");
-   
-    dtostrf((node.getResponseBuffer(0x11) / 100.0f), 2, 3, buf );
-    client.publish("EPSolar/1/temp1", buf);
-    
-    dtostrf((node.getResponseBuffer(0x04) / 100.0f), 2, 3, buf );
+
+    ctemp = (long)node.getResponseBuffer(0x11) / 100.0f; 
+    dtostrf(ctemp, 2, 3, buf );
+    client.publish("EPSolar/1/ctemp", buf);
+
+    bvoltage = (long)node.getResponseBuffer(0x04) / 100.0f;
+    dtostrf(bvoltage, 2, 3, buf );
     client.publish("EPSolar/1/bvoltage", buf);
 
     lpower = ((long)node.getResponseBuffer(0x0F) << 16 | node.getResponseBuffer(0x0E)) / 100.0f;
@@ -190,6 +195,62 @@ void AddressRegistry_311A() {
     
   } else {
     rs485DataReceived = false;
+  }
+}
+
+void AddressRegistry_9000() {
+  result = node.readHoldingRegisters(0x9000, 14);
+  client.publish("EPSolar/1/loop1", "9000");
+  if (result == node.ku8MBSuccess)
+  {
+    client.publish("EPSolar/1/loop1", "9000 result");
+    batt_cap = node.getResponseBuffer(0x01) / 1.0f;
+    dtostrf(batt_cap, 2, 3, buf);
+    client.publish("EPSolar/1/batt_cap", buf);
+
+    batt_highdisc = node.getResponseBuffer(0x03) / 100.0f;
+    dtostrf(batt_highdisc, 2, 3, buf);
+    client.publish("EPSolar/1/batt_highdisc", buf);
+
+    batt_chargelimit = node.getResponseBuffer(0x04) / 100.0f;
+    dtostrf(batt_chargelimit, 2, 3, buf);
+    client.publish("EPSolar/1/batt_chargelimit", buf);
+
+    batt_overvoltrecon = node.getResponseBuffer(0x05) / 100.0f;
+    dtostrf(batt_overvoltrecon, 2, 3, buf);
+    client.publish("EPSolar/1/batt_overvoltrecon", buf);
+
+    batt_equalvolt = node.getResponseBuffer(0x06) / 100.0f;
+    dtostrf(batt_equalvolt, 2, 3, buf);
+    client.publish("EPSolar/1/batt_equalvolt", buf);    
+
+    batt_boostvolt = node.getResponseBuffer(0x07) / 100.0f;
+    dtostrf(batt_boostvolt, 2, 3, buf);
+    client.publish("EPSolar/1/batt_boostvolt", buf);
+
+    batt_floatvolt = node.getResponseBuffer(0x08) / 100.0f;
+    dtostrf(batt_floatvolt, 2, 3, buf);
+    client.publish("EPSolar/1/batt_floatvolt", buf);
+
+    batt_boostrecon = node.getResponseBuffer(0x09) / 100.0f;
+    dtostrf(batt_boostrecon, 2, 3, buf);
+    client.publish("EPSolar/1/batt_boostrecon", buf);
+
+    batt_lowvoltrecon = node.getResponseBuffer(0x0A) / 100.0f;
+    dtostrf(batt_lowvoltrecon, 2, 3, buf);
+    client.publish("EPSolar/1/batt_lowvoltrecon", buf);    
+
+    batt_undervoltrecon = node.getResponseBuffer(0x0B) / 100.0f;
+    dtostrf(batt_undervoltrecon, 2, 3, buf);
+    client.publish("EPSolar/1/batt_undervoltrecon", buf);
+
+    batt_undervoltwarn = node.getResponseBuffer(0x0C) / 100.0f;
+    dtostrf(batt_undervoltwarn, 2, 3, buf);
+    client.publish("EPSolar/1/batt_undervoltwarn", buf);
+
+    batt_lowvoltdisc = node.getResponseBuffer(0x0D) / 100.0f;
+    dtostrf(batt_lowvoltdisc, 2, 3, buf);
+    client.publish("EPSolar/1/batt_lowvoltdisc", buf);
   }
 }
 
