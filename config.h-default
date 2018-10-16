@@ -1,0 +1,12 @@
+const char* ssid = "your_ssid";
+const char* password = "your_wifi_password";
+const char* mqtt_server = "your_mqtt_server";
+const char* mqtt_user = "mqtt_user";
+const char* mqtt_pass = "mqtt_pass";
+
+#define OTA_HOSTNAME                    "SOLAR-CHARGE-MONITOR-1"
+#define EPSOLAR_DEVICE_ID    1
+#define MQTT_ROOT                       "EPSolar"
+
+
+

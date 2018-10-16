@@ -10,6 +10,10 @@ By default, this will write to queues under:
 
 /EPSolar/\<device ID\>/\<stat\>
 
+# Usage
+
+Copy the config.h-default to config.h and edit the parameters. If you have more than one solar module, then you can adjust the ID number in each client.publish line. Plans are to at some point make this a single variable, but that is in testing.
+
 # Incorporating into OpenHAB
 
 You will need the MQTT binding installed and configured to connect to the same MQTT instance. Once that is done, you can create an items file similar to this:

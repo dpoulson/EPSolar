@@ -16,6 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
+#include "config.h"
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
@@ -31,14 +32,6 @@ float batt_type, batt_cap, batt_highdisc, batt_chargelimit, batt_overvoltrecon, 
 float batt_lowvoltrecon, batt_undervoltrecon, batt_undervoltwarn, batt_lowvoltdisc;
 uint8_t result;
 
-
-const char* ssid = "60 Chequers Avenue AP1";
-const char* password = "trial3211";
-const char* mqtt_server = "192.168.6.46";
-
-#define OTA_HOSTNAME                    "SOLAR-CHARGE-MONITOR-1"
-#define EPSOLAR_DEVICE_ID		1
-
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -50,6 +43,7 @@ SimpleTimer timer;
 
 char buf[10];
 String value;
+char mptt_location[16];
 
 // tracer requires no handshaking
 void preTransmission() {}
@@ -123,10 +117,9 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("EPSolar1")) {
+    if (client.connect("EPSolar1", mqtt_user, mqtt_pass)) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("EPSolar/1/loop1", "Reconnect");
     } else {
       // Wait 5 seconds before retrying
       delay(5000);
@@ -142,10 +135,9 @@ void AddressRegistry_3100() {
   result = node.readInputRegisters(0x3100, 10);
   if (result == node.ku8MBSuccess)
   {
-    client.publish("EPSolar/1/loop1", "result");
-
     ctemp = (long)node.getResponseBuffer(0x11) / 100.0f; 
     dtostrf(ctemp, 2, 3, buf );
+    //mqtt_location = MQTT_ROOT + "/" + EPSOLAR_DEVICE_ID + "/ctemp";
     client.publish("EPSolar/1/ctemp", buf);
 
     bvoltage = (long)node.getResponseBuffer(0x04) / 100.0f;
