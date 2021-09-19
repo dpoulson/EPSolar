@@ -23,17 +23,31 @@
 #include <ArduinoOTA.h>
 #include <SimpleTimer.h>
 #include <ModbusMaster.h>
-#include <PubSubClient.h>
+#include <LeifHomieLib.h>
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 int timerTask2, timerTask3;
-float ctemp, bvoltage, battChargeCurrent, btemp, bremaining, lpower, lcurrent, pvvoltage, pvcurrent, pvpower;
-float batt_type, batt_cap, batt_highdisc, batt_chargelimit, batt_overvoltrecon, batt_equalvolt, batt_boostvolt, batt_floatvolt, batt_boostrecon;
-float batt_lowvoltrecon, batt_undervoltrecon, batt_undervoltwarn, batt_lowvoltdisc;
+float bvoltage, bcurrent, bpower, btemp, bremaining, lvoltage, lcurrent, lpower, pvvoltage, pvcurrent, pvpower;
 uint8_t result;
 
 WiFiClient espClient;
-PubSubClient client(espClient);
+
+HomieDevice homie;
+
+
+HomieProperty * pPropbvoltage=NULL;
+HomieProperty * pPropbcurrent=NULL;
+HomieProperty * pPropbpower=NULL;
+HomieProperty * pPropbremaining=NULL;
+
+HomieProperty * pProplvoltage=NULL;
+HomieProperty * pProplcurrent=NULL;
+HomieProperty * pProplpower=NULL;
+
+HomieProperty * pProppvvoltage=NULL;
+HomieProperty * pProppvcurrent=NULL;
+HomieProperty * pProppvpower=NULL;
+
 
 // this is to check if we can write since rs485 is half duplex
 bool rs485DataReceived = true;
@@ -43,7 +57,7 @@ SimpleTimer timer;
 
 char buf[10];
 String value;
-char mptt_location[16];
+
 
 // tracer requires no handshaking
 void preTransmission() {}
@@ -54,7 +68,6 @@ typedef void (*RegistryList[])();
 RegistryList Registries = {
   AddressRegistry_3100,
   AddressRegistry_311A,
-  AddressRegistry_9000,
 };
 // keep log of where we are
 uint8_t currentRegistryNumber = 0;
@@ -68,6 +81,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Booting");
   WiFi.mode(WIFI_STA);
+  WiFi.hostname(OTA_HOSTNAME);
   WiFi.begin(ssid, password);
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("Connection Failed! Rebooting...");
@@ -105,26 +119,102 @@ void setup() {
     else if (error == OTA_END_ERROR) Serial.println("End Failed");
   });
   ArduinoOTA.begin();
-  client.setServer(mqtt_server, 1883);
+
+
+  HomieLibRegisterDebugPrintCallback([](const char * szText){
+    Serial.printf("%s",szText);
+    });
+    {
+      HomieNode * pNode=homie.NewNode();
+      pNode->strID="properties";
+      pNode->strFriendlyName="Properties";
+
+      HomieProperty * pProp;
+      
+      pPropbvoltage=pProp=pNode->NewProperty();
+      pProp->strFriendlyName="Battery Voltage";
+      pProp->strID="bvoltage";
+      pProp->strFormat="V";
+      pProp->SetRetained(true);
+      pProp->datatype=homieFloat;
+
+      pPropbcurrent=pProp=pNode->NewProperty();
+      pProp->strFriendlyName="Battery Charging Current";
+      pProp->strID="bcurrent";
+      pProp->strFormat="A";
+      pProp->SetRetained(true);
+      pProp->datatype=homieFloat;
+
+      pPropbpower=pProp=pNode->NewProperty();
+      pProp->strFriendlyName="Battery Charging Power";
+      pProp->strID="bpower";
+      pProp->strFormat="W";
+      pProp->SetRetained(true);
+      pProp->datatype=homieFloat;
+
+      pPropbremaining=pProp=pNode->NewProperty();
+      pProp->strFriendlyName="Battery Remaining";
+      pProp->strID="bremaining";
+      pProp->strFormat="%";
+      pProp->SetRetained(true);
+      pProp->datatype=homieFloat;
+
+      pProppvvoltage=pProp=pNode->NewProperty();
+      pProp->strFriendlyName="PV Voltage";
+      pProp->strID="pvvoltage";
+      pProp->strFormat="V";
+      pProp->SetRetained(true);
+      pProp->datatype=homieFloat;
+
+      pProppvcurrent=pProp=pNode->NewProperty();
+      pProp->strFriendlyName="PV Current";
+      pProp->strID="pvcurrent";
+      pProp->strFormat="A";
+      pProp->SetRetained(true);
+      pProp->datatype=homieFloat;
+
+      pProppvpower=pProp=pNode->NewProperty();
+      pProp->strFriendlyName="PV Power";
+      pProp->strID="pvpower";
+      pProp->strFormat="W";
+      pProp->SetRetained(true);
+      pProp->datatype=homieFloat;      
+
+      pProplvoltage=pProp=pNode->NewProperty();
+      pProp->strFriendlyName="Load Voltage";
+      pProp->strID="lvoltage";
+      pProp->strFormat="V";
+      pProp->SetRetained(true);
+      pProp->datatype=homieFloat;
+
+      pProplcurrent=pProp=pNode->NewProperty();
+      pProp->strFriendlyName="Load Current";
+      pProp->strID="lcurrent";
+      pProp->strFormat="A";
+      pProp->SetRetained(true);
+      pProp->datatype=homieFloat;
+
+      pProplpower=pProp=pNode->NewProperty();
+      pProp->strFriendlyName="Load Power";
+      pProp->strID="lpower";
+      pProp->strFormat="W";
+      pProp->SetRetained(true);
+      pProp->datatype=homieFloat;      
+    }
+
+  homie.strFriendlyName="EPSolar 1";
+  homie.strID="EPsolar1";
+  homie.strID.toLowerCase();
+
+  homie.strMqttServerIP=MQTT_IP;
+  homie.strMqttUserName=MQTT_USER;
+  homie.strMqttPassword=MQTT_PASS;
+
+  homie.Init();
 
 
   timerTask2 = timer.setInterval(10000, doRegistryNumber);
   timerTask3 = timer.setInterval(10000, nextRegistryNumber);
-}
-
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (client.connect("EPSolar1", mqtt_user, mqtt_pass)) {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-    } else {
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
 }
 
 void doRegistryNumber() {
@@ -132,41 +222,35 @@ void doRegistryNumber() {
 }
 
 void AddressRegistry_3100() {
-  result = node.readInputRegisters(0x3100, 10);
+  result = node.readInputRegisters(0x3100, 16);
   if (result == node.ku8MBSuccess)
   {
-    ctemp = (long)node.getResponseBuffer(0x11) / 100.0f; 
-    dtostrf(ctemp, 2, 3, buf );
-    //mqtt_location = MQTT_ROOT + "/" + EPSOLAR_DEVICE_ID + "/ctemp";
-    client.publish("EPSolar/1/ctemp", buf);
-
     bvoltage = (long)node.getResponseBuffer(0x04) / 100.0f;
-    dtostrf(bvoltage, 2, 3, buf );
-    client.publish("EPSolar/1/bvoltage", buf);
+    pPropbvoltage->SetValue(dtostrf(bvoltage, 2, 3, buf ));
 
-    lpower = ((long)node.getResponseBuffer(0x0F) << 16 | node.getResponseBuffer(0x0E)) / 100.0f;
-    dtostrf(lpower, 2, 3, buf);
-    client.publish("EPSolar/1/lpower", buf);
+    bcurrent = (long)node.getResponseBuffer(0x05) / 100.0f;
+    pPropbcurrent->SetValue(dtostrf(bcurrent, 2, 3, buf ));
 
+    bpower = ((long)node.getResponseBuffer(0x07) << 16 | node.getResponseBuffer(0x06)) / 100.0f;
+    pPropbpower->SetValue(dtostrf(bpower, 2, 3, buf ));
+
+    lvoltage = (long)node.getResponseBuffer(0x0C) / 100.0f;
+    pProplvoltage->SetValue(dtostrf(lvoltage, 2, 3, buf ));
+    
     lcurrent = (long)node.getResponseBuffer(0x0D) / 100.0f;
-    dtostrf(lcurrent, 2, 3, buf );
-    client.publish("EPSolar/1/lcurrent", buf);
+    pProplcurrent->SetValue(dtostrf(lcurrent, 2, 3, buf ));  
+      
+    lpower = ((long)node.getResponseBuffer(0x0F) << 16 | node.getResponseBuffer(0x0E)) / 100.0f;
+    pProplpower->SetValue(dtostrf(lpower, 2, 3, buf));
 
     pvvoltage = (long)node.getResponseBuffer(0x00) / 100.0f;
-    dtostrf(pvvoltage, 2, 3, buf );
-    client.publish("EPSolar/1/pvvoltage", buf);
+    pProppvvoltage->SetValue(dtostrf(pvvoltage, 2, 3, buf ));
 
     pvcurrent = (long)node.getResponseBuffer(0x01) / 100.0f;
-    dtostrf(pvcurrent, 2, 3, buf );
-    client.publish("EPSolar/1/pvcurrent", buf);   
+    pProppvcurrent->SetValue(dtostrf(pvcurrent, 2, 3, buf ));
 
     pvpower = ((long)node.getResponseBuffer(0x03) << 16 | node.getResponseBuffer(0x02)) / 100.0f;
-    dtostrf(pvpower, 2, 3, buf );
-    client.publish("EPSolar/1/pvpower", buf);
-    
-    battChargeCurrent = (long)node.getResponseBuffer(0x05) / 100.0f;
-    dtostrf(battChargeCurrent, 2, 3, buf );
-    client.publish("EPSolar/1/battChargeCurrent", buf);
+    pProppvpower->SetValue(dtostrf(pvpower, 2, 3, buf ));
 
   } else {
     rs485DataReceived = false;
@@ -178,80 +262,16 @@ void AddressRegistry_311A() {
   if (result == node.ku8MBSuccess)
   {
     bremaining = node.getResponseBuffer(0x00) / 1.0f;
-    dtostrf(bremaining, 2, 3, buf );
-    client.publish("EPSolar/1/bremaining", buf);
-    
-    btemp = node.getResponseBuffer(0x01) / 100.0f;
-    dtostrf(btemp, 2, 3, buf );
-    client.publish("EPSolar/1/btemp", buf);
+    pPropbremaining->SetValue(dtostrf(bremaining, 2, 3, buf ));
     
   } else {
     rs485DataReceived = false;
   }
 }
 
-void AddressRegistry_9000() {
-  result = node.readHoldingRegisters(0x9000, 14);
-  client.publish("EPSolar/1/loop1", "9000");
-  if (result == node.ku8MBSuccess)
-  {
-    client.publish("EPSolar/1/loop1", "9000 result");
-    batt_cap = node.getResponseBuffer(0x01) / 1.0f;
-    dtostrf(batt_cap, 2, 3, buf);
-    client.publish("EPSolar/1/batt_cap", buf);
-
-    batt_highdisc = node.getResponseBuffer(0x03) / 100.0f;
-    dtostrf(batt_highdisc, 2, 3, buf);
-    client.publish("EPSolar/1/batt_highdisc", buf);
-
-    batt_chargelimit = node.getResponseBuffer(0x04) / 100.0f;
-    dtostrf(batt_chargelimit, 2, 3, buf);
-    client.publish("EPSolar/1/batt_chargelimit", buf);
-
-    batt_overvoltrecon = node.getResponseBuffer(0x05) / 100.0f;
-    dtostrf(batt_overvoltrecon, 2, 3, buf);
-    client.publish("EPSolar/1/batt_overvoltrecon", buf);
-
-    batt_equalvolt = node.getResponseBuffer(0x06) / 100.0f;
-    dtostrf(batt_equalvolt, 2, 3, buf);
-    client.publish("EPSolar/1/batt_equalvolt", buf);    
-
-    batt_boostvolt = node.getResponseBuffer(0x07) / 100.0f;
-    dtostrf(batt_boostvolt, 2, 3, buf);
-    client.publish("EPSolar/1/batt_boostvolt", buf);
-
-    batt_floatvolt = node.getResponseBuffer(0x08) / 100.0f;
-    dtostrf(batt_floatvolt, 2, 3, buf);
-    client.publish("EPSolar/1/batt_floatvolt", buf);
-
-    batt_boostrecon = node.getResponseBuffer(0x09) / 100.0f;
-    dtostrf(batt_boostrecon, 2, 3, buf);
-    client.publish("EPSolar/1/batt_boostrecon", buf);
-
-    batt_lowvoltrecon = node.getResponseBuffer(0x0A) / 100.0f;
-    dtostrf(batt_lowvoltrecon, 2, 3, buf);
-    client.publish("EPSolar/1/batt_lowvoltrecon", buf);    
-
-    batt_undervoltrecon = node.getResponseBuffer(0x0B) / 100.0f;
-    dtostrf(batt_undervoltrecon, 2, 3, buf);
-    client.publish("EPSolar/1/batt_undervoltrecon", buf);
-
-    batt_undervoltwarn = node.getResponseBuffer(0x0C) / 100.0f;
-    dtostrf(batt_undervoltwarn, 2, 3, buf);
-    client.publish("EPSolar/1/batt_undervoltwarn", buf);
-
-    batt_lowvoltdisc = node.getResponseBuffer(0x0D) / 100.0f;
-    dtostrf(batt_lowvoltdisc, 2, 3, buf);
-    client.publish("EPSolar/1/batt_lowvoltdisc", buf);
-  }
-}
 
 void loop() {
   ArduinoOTA.handle();
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
   timer.run();
+  homie.Loop();
 }
-
